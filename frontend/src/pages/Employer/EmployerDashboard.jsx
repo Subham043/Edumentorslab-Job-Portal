@@ -119,6 +119,45 @@ export default function EmployerDashboard() {
           </Card>
         </div>
 
+
+        {/* Boost Analytics */}
+        {analytics?.boost_analytics && analytics.boost_analytics.boosted_jobs > 0 && (
+          <Card className="mb-8 rounded-2xl border-orange-300 bg-gradient-to-br from-orange-50/50 to-pink-50/50" data-testid="boost-analytics-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span className="text-2xl">🚀</span>
+                Boost Impact Analytics
+              </CardTitle>
+              <CardDescription>See how job boosting improves your results</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 bg-white/50 rounded-lg">
+                  <div className="text-3xl font-bold text-orange-600" data-testid="boosted-jobs-count">
+                    {analytics.boost_analytics.boosted_jobs}
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">Boosted Jobs</div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-lg">
+                  <div className="text-3xl font-bold text-orange-600" data-testid="boost-conversion">
+                    {analytics.boost_analytics.boost_conversion_rate}%
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">Boosted Conversion</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    vs {analytics.boost_analytics.regular_conversion_rate}% regular
+                  </div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-lg">
+                  <div className="text-3xl font-bold text-green-600" data-testid="boost-improvement">
+                    +{analytics.boost_analytics.boost_improvement}%
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">Improvement</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recent Jobs */}
         <Card className="rounded-2xl" data-testid="recent-jobs-card">
           <CardHeader>

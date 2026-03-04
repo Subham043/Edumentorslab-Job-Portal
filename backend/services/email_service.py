@@ -109,3 +109,40 @@ Best regards,
 E1 Job Portal Team
     """
     return send_email(email, subject, body)
+
+
+def send_boost_expiry_reminder(email: str, name: str, job_title: str, expires_in_days: int):
+    """Send boost expiry reminder to employer."""
+    subject = f"Your Job Boost is Expiring Soon - {job_title}"
+    body = f"""
+Hi {name},
+
+Your boosted job listing "{job_title}" will expire in {expires_in_days} day{'s' if expires_in_days > 1 else ''}.
+
+To maintain top visibility and continue getting more applications, consider boosting it again!
+
+Boost now: https://edu-jobs-network.preview.emergentagent.com/employer/my-jobs
+
+Best regards,
+E1 Job Portal Team
+    """
+    return send_email(email, subject, body)
+
+def send_boost_confirmation(email: str, name: str, job_title: str, expires_date: str):
+    """Send boost confirmation email to employer."""
+    subject = f"Job Boosted Successfully - {job_title}"
+    body = f"""
+Hi {name},
+
+Great news! Your job "{job_title}" has been boosted successfully!
+
+Your job will now appear at the top of search results and get 10x more visibility.
+
+Boost active until: {expires_date}
+
+Track your results: https://edu-jobs-network.preview.emergentagent.com/employer/my-jobs
+
+Best regards,
+E1 Job Portal Team
+    """
+    return send_email(email, subject, body)

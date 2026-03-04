@@ -4,7 +4,7 @@ from middleware.auth_middleware import get_current_user, require_role
 from models.job import Job, JobCreate, JobUpdate
 from models.application import ApplicationStatusUpdate
 from models.payment import Payment, PaymentVerify
-from services.email_service import send_status_update_email
+from services.email_service import send_status_update_email, send_boost_confirmation
 from services.payment_service import create_razorpay_order, verify_razorpay_signature
 from utils.db import get_db
 from utils.helpers import serialize_datetime, exclude_id
@@ -194,6 +194,26 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     
     conversion_rate = (total_applicants / total_views * 100) if total_views > 0 else 0
     
+    # Boost analytics
+    boosted_jobs_count = sum(1 for job in jobs if job.get('is_boosted'))
+    
+    # Calculate boost impact
+    boosted_applicants = 0
+    regular_applicants = 0
+    boosted_views = 0
+    regular_views = 0
+    
+    for job in jobs:
+        if job.get('is_boosted'):
+            boosted_applicants += job.get('applicants_count', 0)
+            boosted_views += job.get('views_count', 0)
+        else:
+            regular_applicants += job.get('applicants_count', 0)
+            regular_views += job.get('views_count', 0)
+    
+    boost_conversion = (boosted_applicants / boosted_views * 100) if boosted_views > 0 else 0
+    regular_conversion = (regular_applicants / regular_views * 100) if regular_views > 0 else 0
+    
     return {
         "total_jobs": total_jobs,
         "total_applicants": total_applicants,
@@ -202,6 +222,14 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         "jobs_by_status": {
             "active": active_jobs,
             "closed": closed_jobs
+        },
+        "boost_analytics": {
+            "boosted_jobs": boosted_jobs_count,
+            "boosted_views": boosted_views,
+            "boosted_applicants": boosted_applicants,
+            "boost_conversion_rate": round(boost_conversion, 2),
+            "regular_conversion_rate": round(regular_conversion, 2),
+            "boost_improvement": round(boost_conversion - regular_conversion, 2) if regular_conversion > 0 else 0
         }
     }
 
@@ -299,6 +327,19 @@ async def verify_boost(
             "updated_at": datetime.now(timezone.utc).isoformat()
         }}
     )
+    
+    # Get job and user info for email
+    job = await db.jobs.find_one({"id": job_id}, exclude_id())
+    user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
+    
+    if job and user:
+        employer_profile = user.get('employer_profile', {})
+        send_boost_confirmation(
+            user['email'],
+            employer_profile.get('contact_person', user['email']),
+            job['title'],
+            boost_expires_at.strftime('%Y-%m-%d')
+        )
     
     return {
         "message": "Job boosted successfully for 7 days!",
