@@ -121,7 +121,7 @@ Your boosted job listing "{job_title}" will expire in {expires_in_days} day{'s' 
 
 To maintain top visibility and continue getting more applications, consider boosting it again!
 
-Boost now: https://edu-jobs-network.preview.emergentagent.com/employer/my-jobs
+Boost now: https://job-portal-preview.preview.emergentagent.com/employer/my-jobs
 
 Best regards,
 E1 Job Portal Team
@@ -140,7 +140,7 @@ Your job will now appear at the top of search results and get 10x more visibilit
 
 Boost active until: {expires_date}
 
-Track your results: https://edu-jobs-network.preview.emergentagent.com/employer/my-jobs
+Track your results: https://job-portal-preview.preview.emergentagent.com/employer/my-jobs
 
 Best regards,
 E1 Job Portal Team

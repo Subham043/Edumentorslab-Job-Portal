@@ -113,7 +113,42 @@ async def upload_resume(
 @router.get("/applications")
 async def get_applications(
     status: Optional[str] = None,
-
+    page: int = 1,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get learner's applications."""
+    await require_role(current_user, ['learner'])
+    
+    query = {"learner_id": current_user['user_id']}
+    if status:
+        query['status'] = status
+    
+    skip = (page - 1) * limit
+    
+    applications = await db.applications.find(query, exclude_id()).sort("applied_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.applications.count_documents(query)
+    
+    result_applications = []
+    for app in applications:
+        job = await db.jobs.find_one({"id": app['job_id']}, exclude_id())
+        result_applications.append({
+            "id": app['id'],
+            "job": {
+                "id": job['id'] if job else "",
+                "title": job['title'] if job else "N/A",
+                "employer_name": job['employer_name'] if job else "N/A"
+            },
+            "status": app['status'],
+            "applied_at": app['applied_at']
+        })
+    
+    return {
+        "applications": result_applications,
+        "total": total,
+        "page": page,
+        "total_pages": (total + limit - 1) // limit
+    }
 
 @router.post("/jobs/{job_id}/save")
 async def save_job(job_id: str, current_user: dict = Depends(get_current_user)):
@@ -180,7 +215,6 @@ async def get_saved_jobs(current_user: dict = Depends(get_current_user)):
         "total": len(jobs)
     }
 
-
 @router.get("/recommended-jobs")
 async def get_recommended_jobs(current_user: dict = Depends(get_current_user)):
     """Get job recommendations based on skills."""
@@ -205,41 +239,3 @@ async def withdraw_application(application_id: str, current_user: dict = Depends
     await db.applications.delete_one({"id": application_id})
     await db.jobs.update_one({"id": app['job_id']}, {"$inc": {"applicants_count": -1}})
     return {"message": "Withdrawn successfully"}
-
-
-    page: int = 1,
-    limit: int = 20,
-    current_user: dict = Depends(get_current_user)
-):
-    """Get learner's applications."""
-    await require_role(current_user, ['learner'])
-    
-    query = {"learner_id": current_user['user_id']}
-    if status:
-        query['status'] = status
-    
-    skip = (page - 1) * limit
-    
-    applications = await db.applications.find(query, exclude_id()).sort("applied_at", -1).skip(skip).limit(limit).to_list(limit)
-    total = await db.applications.count_documents(query)
-    
-    result_applications = []
-    for app in applications:
-        job = await db.jobs.find_one({"id": app['job_id']}, exclude_id())
-        result_applications.append({
-            "id": app['id'],
-            "job": {
-                "id": job['id'] if job else "",
-                "title": job['title'] if job else "N/A",
-                "employer_name": job['employer_name'] if job else "N/A"
-            },
-            "status": app['status'],
-            "applied_at": app['applied_at']
-        })
-    
-    return {
-        "applications": result_applications,
-        "total": total,
-        "page": page,
-        "total_pages": (total + limit - 1) // limit
-    }

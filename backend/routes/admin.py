@@ -19,7 +19,6 @@ async def get_settings(current_user: dict = Depends(get_current_user)):
     
     settings = await db.settings.find_one({}, exclude_id())
     if not settings:
-        # Create default settings
         default_settings = SystemSettings()
         settings_dict = default_settings.model_dump()
         settings_dict = serialize_datetime(settings_dict)
@@ -88,7 +87,78 @@ async def get_users(
 @router.get("/users/{user_id}")
 async def get_user_details(user_id: str, current_user: dict = Depends(get_current_user)):
     """Get detailed user information."""
+    await require_role(current_user, ['admin'])
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.pop('password_hash', None)
+    return user
 
+@router.put("/users/{user_id}")
+async def update_user(user_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
+    """Admin can edit any user profile."""
+    await require_role(current_user, ['admin'])
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": "User updated successfully"}
+
+@router.put("/users/{user_id}/status")
+async def update_user_status(
+    user_id: str,
+    status: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update user status (block/unblock)."""
+    await require_role(current_user, ['admin'])
+    
+    if status not in ['active', 'blocked']:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "status": status,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": f"User {status} successfully"}
+
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete user."""
+    await require_role(current_user, ['admin'])
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    await db.users.delete_one({"id": user_id})
+    
+    if user['role'] == 'employer':
+        await db.jobs.delete_many({"employer_id": user_id})
+        await db.subscriptions.delete_many({"employer_id": user_id})
+        await db.payments.delete_many({"employer_id": user_id})
+    elif user['role'] == 'learner':
+        await db.applications.delete_many({"learner_id": user_id})
+    
+    return {"message": "User deleted successfully"}
 
 # ============= JOB MANAGEMENT =============
 
@@ -214,14 +284,14 @@ async def get_all_payments(
         "total": len(payments)
     }
 
-
+# ============= CSV EXPORTS =============
 
 @router.get("/export/users-csv")
 async def export_users_csv(current_user: dict = Depends(get_current_user)):
     """Export users CSV."""
     await require_role(current_user, ['admin'])
     users = await db.users.find({}, exclude_id()).to_list(5000)
-    csv = "ID,Email,Role,Status\\n" + "\\n".join([f"{u['id']},{u['email']},{u['role']},{u.get('status','active')}" for u in users])
+    csv = "ID,Email,Role,Status\n" + "\n".join([f"{u['id']},{u['email']},{u['role']},{u.get('status','active')}" for u in users])
     return {"csv": csv, "count": len(users)}
 
 @router.get("/export/jobs-csv")
@@ -229,81 +299,10 @@ async def export_jobs_csv(current_user: dict = Depends(get_current_user)):
     """Export jobs CSV."""
     await require_role(current_user, ['admin'])
     jobs = await db.jobs.find({}, exclude_id()).to_list(5000)
-    csv = "ID,Title,Employer,Applicants,Views\\n" + "\\n".join([f"{j['id']},\\\"{j['title']}\\\",{j['employer_name']},{j.get('applicants_count',0)},{j.get('views_count',0)}" for j in jobs])
+    csv = "ID,Title,Employer,Applicants,Views\n" + "\n".join([f"{j['id']},\"{j['title']}\",{j['employer_name']},{j.get('applicants_count',0)},{j.get('views_count',0)}" for j in jobs])
     return {"csv": csv, "count": len(jobs)}
 
-    await require_role(current_user, ['admin'])
-    
-    user = await db.users.find_one({"id": user_id}, exclude_id())
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user.pop('password_hash', None)
-    return user
-
-@router.put("/users/{user_id}")
-async def update_user(user_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
-    """Admin can edit any user profile."""
-    await require_role(current_user, ['admin'])
-    
-    user = await db.users.find_one({"id": user_id}, exclude_id())
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": update_data}
-    )
-    
-    return {"message": "User updated successfully"}
-
-@router.put("/users/{user_id}/status")
-async def update_user_status(
-    user_id: str,
-    status: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """Update user status (block/unblock)."""
-    await require_role(current_user, ['admin'])
-    
-    if status not in ['active', 'blocked']:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    
-    user = await db.users.find_one({"id": user_id}, exclude_id())
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {
-            "status": status,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }}
-    )
-    
-    return {"message": f"User {status} successfully"}
-
-@router.delete("/users/{user_id}")
-async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete user."""
-    await require_role(current_user, ['admin'])
-    
-    user = await db.users.find_one({"id": user_id}, exclude_id())
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    await db.users.delete_one({"id": user_id})
-    
-    if user['role'] == 'employer':
-        await db.jobs.delete_many({"employer_id": user_id})
-        await db.subscriptions.delete_many({"employer_id": user_id})
-        await db.payments.delete_many({"employer_id": user_id})
-    elif user['role'] == 'learner':
-        await db.applications.delete_many({"learner_id": user_id})
-    
-    return {"message": "User deleted successfully"}
+# ============= ANALYTICS =============
 
 @router.get("/analytics")
 async def get_analytics(current_user: dict = Depends(get_current_user)):
@@ -333,6 +332,8 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         "total_revenue": total_revenue,
         "active_subscriptions": active_subscriptions
     }
+
+# ============= JOB MODERATION =============
 
 @router.get("/jobs/pending")
 async def get_pending_jobs(current_user: dict = Depends(get_current_user)):

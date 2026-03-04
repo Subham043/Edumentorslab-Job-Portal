@@ -48,19 +48,6 @@ async def create_job(job_data: JobCreate, current_user: dict = Depends(get_curre
     job_dict = job.model_dump()
     job_dict = serialize_datetime(job_dict)
     
-
-
-@router.get("/jobs/{job_id}")
-async def get_my_job(job_id: str, current_user: dict = Depends(get_current_user)):
-    """Get employer's specific job details."""
-    await require_role(current_user, ['employer'])
-    
-    job = await db.jobs.find_one({"id": job_id, "employer_id": current_user['user_id']}, exclude_id())
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    return job
-
     await db.jobs.insert_one(job_dict)
     
     return {
@@ -87,6 +74,17 @@ async def get_my_jobs(current_user: dict = Depends(get_current_user)):
         "jobs": jobs,
         "total": len(jobs)
     }
+
+@router.get("/jobs/{job_id}")
+async def get_my_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Get employer's specific job details."""
+    await require_role(current_user, ['employer'])
+    
+    job = await db.jobs.find_one({"id": job_id, "employer_id": current_user['user_id']}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return job
 
 @router.put("/jobs/{job_id}")
 async def update_job(
@@ -207,25 +205,14 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     
     conversion_rate = (total_applicants / total_views * 100) if total_views > 0 else 0
     
-    # Boost analytics
     boosted_jobs_count = sum(1 for job in jobs if job.get('is_boosted'))
     
-    # Calculate boost impact
     boosted_applicants = 0
     regular_applicants = 0
     boosted_views = 0
     regular_views = 0
     
     for job in jobs:
-
-
-@router.get("/recent-activity")
-async def get_recent_activity(current_user: dict = Depends(get_current_user)):
-    """Get recent applications."""
-    await require_role(current_user, ['employer'])
-    apps = await db.applications.find({"employer_id": current_user['user_id']}, exclude_id()).sort("applied_at", -1).limit(10).to_list(10)
-    return {"recent_applications": apps, "count": len(apps)}
-
         if job.get('is_boosted'):
             boosted_applicants += job.get('applicants_count', 0)
             boosted_views += job.get('views_count', 0)
@@ -255,6 +242,13 @@ async def get_recent_activity(current_user: dict = Depends(get_current_user)):
         }
     }
 
+@router.get("/recent-activity")
+async def get_recent_activity(current_user: dict = Depends(get_current_user)):
+    """Get recent applications."""
+    await require_role(current_user, ['employer'])
+    apps = await db.applications.find({"employer_id": current_user['user_id']}, exclude_id()).sort("applied_at", -1).limit(10).to_list(10)
+    return {"recent_applications": apps, "count": len(apps)}
+
 @router.post("/boost-job/{job_id}")
 async def boost_job(job_id: str, current_user: dict = Depends(get_current_user)):
     """Boost a job listing for 7 days (requires payment)."""
@@ -272,7 +266,6 @@ async def boost_job(job_id: str, current_user: dict = Depends(get_current_user))
             if boost_expires > datetime.now(timezone.utc):
                 raise HTTPException(status_code=400, detail="Job is already boosted")
     
-    # Create Razorpay order for boost
     razorpay_order = create_razorpay_order(BOOST_PRICE, "INR")
     
     if not razorpay_order:
@@ -281,7 +274,7 @@ async def boost_job(job_id: str, current_user: dict = Depends(get_current_user))
     payment = Payment(
         employer_id=current_user['user_id'],
         razorpay_order_id=razorpay_order['id'],
-        amount=BOOST_PRICE * 100,
+        amount=BOOST_PRICE,
         currency="INR",
         status="created"
     )
@@ -294,7 +287,7 @@ async def boost_job(job_id: str, current_user: dict = Depends(get_current_user))
     
     return {
         "order_id": razorpay_order['id'],
-        "amount": BOOST_PRICE * 100,
+        "amount": BOOST_PRICE,
         "currency": "INR",
         "key_id": os.environ.get('RAZORPAY_KEY_ID'),
         "job_id": job_id
@@ -338,7 +331,6 @@ async def verify_boost(
         }}
     )
     
-    # Activate job boost for 7 days
     boost_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
     
     await db.jobs.update_one(
@@ -350,7 +342,6 @@ async def verify_boost(
         }}
     )
     
-    # Get job and user info for email
     job = await db.jobs.find_one({"id": job_id}, exclude_id())
     user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
     

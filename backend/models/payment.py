@@ -25,7 +25,6 @@ class Payment(BaseModel):
 
 class PaymentCreate(BaseModel):
     plan: str
-    amount: int
     currency: str = "INR"
 
 class PaymentVerify(BaseModel):

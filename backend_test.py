@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 
 class JobPortalAPITester:
-    def __init__(self, base_url="https://edu-jobs-network.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://job-portal-preview.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tokens = {}  # Store tokens for different roles
         self.user_data = {}  # Store user data for different roles
