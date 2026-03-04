@@ -217,6 +217,15 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     regular_views = 0
     
     for job in jobs:
+
+
+@router.get("/recent-activity")
+async def get_recent_activity(current_user: dict = Depends(get_current_user)):
+    """Get recent applications."""
+    await require_role(current_user, ['employer'])
+    apps = await db.applications.find({"employer_id": current_user['user_id']}, exclude_id()).sort("applied_at", -1).limit(10).to_list(10)
+    return {"recent_applications": apps, "count": len(apps)}
+
         if job.get('is_boosted'):
             boosted_applicants += job.get('applicants_count', 0)
             boosted_views += job.get('views_count', 0)

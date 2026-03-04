@@ -16,6 +16,7 @@ export default function LearnerDashboard() {
 
   useEffect(() => {
     fetchData();
+    fetchRecommendations();
   }, []);
 
   const fetchData = async () => {
@@ -36,6 +37,18 @@ export default function LearnerDashboard() {
   const profileCompletion = profile?.learner_profile?.profile_completion || 0;
 
   return (
+
+  const [recommendations, setRecommendations] = useState([]);
+
+  const fetchRecommendations = async () => {
+    try {
+      const response = await api.get('/learners/recommended-jobs');
+      setRecommendations(response.data.jobs.slice(0, 3));
+    } catch (error) {
+      console.error('Failed to load recommendations');
+    }
+  };
+
     <div className="min-h-screen bg-gradient-to-br from-[hsl(var(--background))] via-[hsl(210,40%,96%)] to-[hsl(var(--background))]" data-testid="learner-dashboard">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
@@ -135,6 +148,27 @@ export default function LearnerDashboard() {
               </Link>
             </CardContent>
           </Card>
+
+
+        {/* Recommended Jobs */}
+        {recommendations.length > 0 && (
+          <Card className="rounded-2xl" data-testid="recommendations-card">
+            <CardHeader>
+              <CardTitle>Recommended for You</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recommendations.map((job) => (
+                  <Link key={job.id} to={`/jobs/${job.id}`} className="block p-3 border rounded-lg hover:bg-accent transition-colors">
+                    <div className="font-semibold">{job.title}</div>
+                    <div className="text-sm text-muted-foreground">{job.employer_name}</div>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         </div>
       </div>
     </div>

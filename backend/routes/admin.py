@@ -214,6 +214,24 @@ async def get_all_payments(
         "total": len(payments)
     }
 
+
+
+@router.get("/export/users-csv")
+async def export_users_csv(current_user: dict = Depends(get_current_user)):
+    """Export users CSV."""
+    await require_role(current_user, ['admin'])
+    users = await db.users.find({}, exclude_id()).to_list(5000)
+    csv = "ID,Email,Role,Status\\n" + "\\n".join([f"{u['id']},{u['email']},{u['role']},{u.get('status','active')}" for u in users])
+    return {"csv": csv, "count": len(users)}
+
+@router.get("/export/jobs-csv")
+async def export_jobs_csv(current_user: dict = Depends(get_current_user)):
+    """Export jobs CSV."""
+    await require_role(current_user, ['admin'])
+    jobs = await db.jobs.find({}, exclude_id()).to_list(5000)
+    csv = "ID,Title,Employer,Applicants,Views\\n" + "\\n".join([f"{j['id']},\\\"{j['title']}\\\",{j['employer_name']},{j.get('applicants_count',0)},{j.get('views_count',0)}" for j in jobs])
+    return {"csv": csv, "count": len(jobs)}
+
     await require_role(current_user, ['admin'])
     
     user = await db.users.find_one({"id": user_id}, exclude_id())

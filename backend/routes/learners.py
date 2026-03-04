@@ -180,6 +180,33 @@ async def get_saved_jobs(current_user: dict = Depends(get_current_user)):
         "total": len(jobs)
     }
 
+
+@router.get("/recommended-jobs")
+async def get_recommended_jobs(current_user: dict = Depends(get_current_user)):
+    """Get job recommendations based on skills."""
+    await require_role(current_user, ['learner'])
+    user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
+    skills = user.get('learner_profile', {}).get('skills', [])
+    if not skills:
+        jobs = await db.jobs.find({"status": "active"}, exclude_id()).sort("created_at", -1).limit(10).to_list(10)
+        return {"jobs": jobs, "message": "Add skills for recommendations"}
+    jobs = await db.jobs.find({"status": "active", "required_skills": {"$in": skills}}, exclude_id()).limit(20).to_list(20)
+    return {"jobs": jobs, "total": len(jobs)}
+
+@router.delete("/applications/{application_id}")
+async def withdraw_application(application_id: str, current_user: dict = Depends(get_current_user)):
+    """Withdraw application."""
+    await require_role(current_user, ['learner'])
+    app = await db.applications.find_one({"id": application_id, "learner_id": current_user['user_id']}, exclude_id())
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if app['status'] in ['selected', 'rejected']:
+        raise HTTPException(status_code=400, detail="Cannot withdraw")
+    await db.applications.delete_one({"id": application_id})
+    await db.jobs.update_one({"id": app['job_id']}, {"$inc": {"applicants_count": -1}})
+    return {"message": "Withdrawn successfully"}
+
+
     page: int = 1,
     limit: int = 20,
     current_user: dict = Depends(get_current_user)
