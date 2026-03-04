@@ -27,6 +27,9 @@ class Job(BaseModel):
     applicants_count: int = 0
     views_count: int = 0
     
+    is_boosted: bool = False
+    boost_expires_at: Optional[datetime] = None
+    
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(days=30))

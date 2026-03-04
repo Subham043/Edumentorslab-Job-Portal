@@ -17,6 +17,8 @@ PLAN_PRICES = {
     "premium": 19900
 }
 
+BOOST_PRICE = 4900  # ₹49 for 7-day boost
+
 @router.post("/create-order")
 async def create_order(payment_data: PaymentCreate, current_user: dict = Depends(get_current_user)):
     """Create Razorpay order for subscription."""

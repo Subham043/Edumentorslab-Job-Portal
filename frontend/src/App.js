@@ -15,6 +15,7 @@ import LearnerProfile from './pages/Learner/LearnerProfile';
 import MyApplications from './pages/Learner/MyApplications';
 import EmployerDashboard from './pages/Employer/EmployerDashboard';
 import PostJob from './pages/Employer/PostJob';
+import MyJobs from './pages/Employer/MyJobs';
 import Subscription from './pages/Employer/Subscription';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 
@@ -90,6 +91,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['employer']}>
                 <PostJob />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/my-jobs"
+            element={
+              <ProtectedRoute allowedRoles={['employer']}>
+                <MyJobs />
               </ProtectedRoute>
             }
           />

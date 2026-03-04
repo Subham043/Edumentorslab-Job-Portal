@@ -2,19 +2,27 @@ import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { MapPin, Briefcase, DollarSign, Calendar } from 'lucide-react';
+import { MapPin, Briefcase, DollarSign, Calendar, Rocket } from 'lucide-react';
 import { formatSalary, formatDate } from '../../utils/helpers';
 import { Link } from 'react-router-dom';
 
 export const JobCard = ({ job }) => {
   return (
-    <Card className="group relative overflow-hidden rounded-2xl border transition-all hover:shadow-xl hover:-translate-y-1" data-testid={`job-card-${job.id}`}>
+    <Card className={`group relative overflow-hidden rounded-2xl border transition-all hover:shadow-xl hover:-translate-y-1 ${job.is_boosted ? 'border-orange-300 bg-gradient-to-br from-orange-50/50 to-pink-50/50' : ''}`} data-testid={`job-card-${job.id}`}>
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-[hsl(var(--student-primary))] transition-colors" data-testid="job-title">
-              {job.title}
-            </h3>
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="text-xl font-semibold group-hover:text-[hsl(var(--student-primary))] transition-colors" data-testid="job-title">
+                {job.title}
+              </h3>
+              {job.is_boosted && (
+                <Badge className="bg-gradient-to-r from-orange-500 to-pink-500 text-white text-xs" data-testid="boosted-badge">
+                  <Rocket className="w-3 h-3 mr-1" />
+                  Boosted
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground font-medium" data-testid="employer-name">{job.employer_name}</p>
           </div>
           <Badge variant="secondary" className="rounded-full" data-testid="job-type">

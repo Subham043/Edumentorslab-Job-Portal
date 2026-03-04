@@ -20,7 +20,7 @@ async def get_jobs(
     page: int = 1,
     limit: int = 20
 ):
-    """Get job listings with filters."""
+    """Get job listings with filters. Boosted jobs appear first."""
     query = {"status": "active"}
     
     if search:
@@ -41,11 +41,46 @@ async def get_jobs(
     
     skip = (page - 1) * limit
     
-    jobs = await db.jobs.find(query, exclude_id()).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    total = await db.jobs.count_documents(query)
+    # Get all jobs and sort with boosted jobs first
+    all_jobs = await db.jobs.find(query, exclude_id()).to_list(None)
+    
+    # Separate boosted and non-boosted jobs
+    current_time = datetime.now(timezone.utc)
+    boosted_jobs = []
+    regular_jobs = []
+    
+    for job in all_jobs:
+        # Check if boost is still valid
+        if job.get('is_boosted') and job.get('boost_expires_at'):
+            boost_expires = job['boost_expires_at']
+            if isinstance(boost_expires, str):
+                boost_expires = datetime.fromisoformat(boost_expires)
+            
+            if boost_expires > current_time:
+                boosted_jobs.append(job)
+            else:
+                # Boost expired, mark as not boosted
+                await db.jobs.update_one(
+                    {"id": job['id']},
+                    {"$set": {"is_boosted": False}}
+                )
+                regular_jobs.append(job)
+        else:
+            regular_jobs.append(job)
+    
+    # Sort boosted by created_at desc, regular by created_at desc
+    boosted_jobs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    regular_jobs.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+    
+    # Combine: boosted first, then regular
+    sorted_jobs = boosted_jobs + regular_jobs
+    
+    # Apply pagination
+    total = len(sorted_jobs)
+    paginated_jobs = sorted_jobs[skip:skip + limit]
     
     return {
-        "jobs": jobs,
+        "jobs": paginated_jobs,
         "total": total,
         "page": page,
         "total_pages": (total + limit - 1) // limit

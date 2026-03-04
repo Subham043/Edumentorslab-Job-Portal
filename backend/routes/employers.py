@@ -3,13 +3,18 @@ from typing import Optional
 from middleware.auth_middleware import get_current_user, require_role
 from models.job import Job, JobCreate, JobUpdate
 from models.application import ApplicationStatusUpdate
+from models.payment import Payment, PaymentVerify
 from services.email_service import send_status_update_email
+from services.payment_service import create_razorpay_order, verify_razorpay_signature
 from utils.db import get_db
 from utils.helpers import serialize_datetime, exclude_id
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import os
 
 router = APIRouter(prefix="/employers", tags=["employers"])
 db = get_db()
+
+BOOST_PRICE = 4900  # ₹49 for 7-day boost
 
 @router.get("/profile")
 async def get_profile(current_user: dict = Depends(get_current_user)):
@@ -198,4 +203,104 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
             "active": active_jobs,
             "closed": closed_jobs
         }
+    }
+
+@router.post("/boost-job/{job_id}")
+async def boost_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Boost a job listing for 7 days (requires payment)."""
+    await require_role(current_user, ['employer'])
+    
+    job = await db.jobs.find_one({"id": job_id, "employer_id": current_user['user_id']}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if job.get('is_boosted'):
+        boost_expires = job.get('boost_expires_at')
+        if boost_expires:
+            if isinstance(boost_expires, str):
+                boost_expires = datetime.fromisoformat(boost_expires)
+            if boost_expires > datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Job is already boosted")
+    
+    # Create Razorpay order for boost
+    razorpay_order = create_razorpay_order(BOOST_PRICE, "INR")
+    
+    if not razorpay_order:
+        raise HTTPException(status_code=500, detail="Failed to create payment order")
+    
+    payment = Payment(
+        employer_id=current_user['user_id'],
+        razorpay_order_id=razorpay_order['id'],
+        amount=BOOST_PRICE * 100,
+        currency="INR",
+        status="created"
+    )
+    
+    payment_dict = payment.model_dump()
+    payment_dict = serialize_datetime(payment_dict)
+    payment_dict['job_id'] = job_id
+    
+    await db.payments.insert_one(payment_dict)
+    
+    return {
+        "order_id": razorpay_order['id'],
+        "amount": BOOST_PRICE * 100,
+        "currency": "INR",
+        "key_id": os.environ.get('RAZORPAY_KEY_ID'),
+        "job_id": job_id
+    }
+
+@router.post("/verify-boost")
+async def verify_boost(
+    razorpay_order_id: str,
+    razorpay_payment_id: str,
+    razorpay_signature: str,
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify boost payment and activate job boost."""
+    await require_role(current_user, ['employer'])
+    
+    is_valid = verify_razorpay_signature(
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature
+    )
+    
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+    
+    payment = await db.payments.find_one(
+        {"razorpay_order_id": razorpay_order_id},
+        exclude_id()
+    )
+    
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    
+    await db.payments.update_one(
+        {"id": payment['id']},
+        {"$set": {
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_signature": razorpay_signature,
+            "status": "success",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Activate job boost for 7 days
+    boost_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    await db.jobs.update_one(
+        {"id": job_id},
+        {"$set": {
+            "is_boosted": True,
+            "boost_expires_at": boost_expires_at.isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {
+        "message": "Job boosted successfully for 7 days!",
+        "boost_expires_at": boost_expires_at.isoformat()
     }
