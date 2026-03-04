@@ -35,7 +35,7 @@ async def create_order(payment_data: PaymentCreate, current_user: dict = Depends
     payment = Payment(
         employer_id=current_user['user_id'],
         razorpay_order_id=razorpay_order['id'],
-        amount=amount,
+        amount=amount * 100,
         currency=payment_data.currency,
         status="created"
     )
@@ -47,7 +47,7 @@ async def create_order(payment_data: PaymentCreate, current_user: dict = Depends
     
     return {
         "order_id": razorpay_order['id'],
-        "amount": amount,
+        "amount": amount * 100,
         "currency": payment_data.currency,
         "key_id": os.environ.get('RAZORPAY_KEY_ID')
     }

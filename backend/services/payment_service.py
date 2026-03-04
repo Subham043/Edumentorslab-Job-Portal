@@ -12,7 +12,7 @@ def create_razorpay_order(amount: int, currency: str = "INR") -> dict:
     """Create a Razorpay order."""
     try:
         order_data = {
-            "amount": amount * 100,
+            "amount": amount,
             "currency": currency,
             "payment_capture": 1
         }
