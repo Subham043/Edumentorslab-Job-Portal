@@ -113,6 +113,73 @@ async def upload_resume(
 @router.get("/applications")
 async def get_applications(
     status: Optional[str] = None,
+
+
+@router.post("/jobs/{job_id}/save")
+async def save_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Save a job to favorites."""
+    await require_role(current_user, ['learner'])
+    
+    job = await db.jobs.find_one({"id": job_id}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
+    learner_profile = user.get('learner_profile', {})
+    saved_jobs = learner_profile.get('saved_jobs', [])
+    
+    if job_id in saved_jobs:
+        raise HTTPException(status_code=409, detail="Job already saved")
+    
+    saved_jobs.append(job_id)
+    
+    await db.users.update_one(
+        {"id": current_user['user_id']},
+        {"$set": {"learner_profile.saved_jobs": saved_jobs}}
+    )
+    
+    return {"message": "Job saved successfully"}
+
+@router.delete("/jobs/{job_id}/save")
+async def unsave_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Remove a job from favorites."""
+    await require_role(current_user, ['learner'])
+    
+    user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
+    learner_profile = user.get('learner_profile', {})
+    saved_jobs = learner_profile.get('saved_jobs', [])
+    
+    if job_id not in saved_jobs:
+        raise HTTPException(status_code=404, detail="Job not in saved list")
+    
+    saved_jobs.remove(job_id)
+    
+    await db.users.update_one(
+        {"id": current_user['user_id']},
+        {"$set": {"learner_profile.saved_jobs": saved_jobs}}
+    )
+    
+    return {"message": "Job removed from saved"}
+
+@router.get("/saved-jobs")
+async def get_saved_jobs(current_user: dict = Depends(get_current_user)):
+    """Get learner's saved jobs."""
+    await require_role(current_user, ['learner'])
+    
+    user = await db.users.find_one({"id": current_user['user_id']}, exclude_id())
+    learner_profile = user.get('learner_profile', {})
+    saved_job_ids = learner_profile.get('saved_jobs', [])
+    
+    if not saved_job_ids:
+        return {"jobs": [], "total": 0}
+    
+    jobs = await db.jobs.find({"id": {"$in": saved_job_ids}}, exclude_id()).to_list(100)
+    
+    return {
+        "jobs": jobs,
+        "total": len(jobs)
+    }
+
     page: int = 1,
     limit: int = 20,
     current_user: dict = Depends(get_current_user)

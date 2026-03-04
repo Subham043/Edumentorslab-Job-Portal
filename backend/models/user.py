@@ -21,11 +21,32 @@ class LearnerProfile(BaseModel):
     location: Optional[str] = ""
     bio: Optional[str] = ""
     resume_url: Optional[str] = ""
+    
+    # Professional links
+    portfolio_url: Optional[str] = ""
+    linkedin_url: Optional[str] = ""
+    github_url: Optional[str] = ""
+    
+    # Skills and qualifications
     skills: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default_factory=list)
+    certifications: List[str] = Field(default_factory=list)
+    
+    # Education and experience
     education: List[Education] = Field(default_factory=list)
     experience: List[Experience] = Field(default_factory=list)
+    
+    # Job preferences
+    expected_salary_min: Optional[int] = 0
+    expected_salary_max: Optional[int] = 0
+    notice_period: Optional[str] = ""
+    work_authorization: Optional[str] = ""
+    willing_to_relocate: bool = False
+    
+    # Profile metadata
     profile_completion: int = 0
     visibility: str = "public"
+    saved_jobs: List[str] = Field(default_factory=list)
 
 class EmployerProfile(BaseModel):
     organization_name: Optional[str] = ""

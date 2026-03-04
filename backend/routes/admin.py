@@ -1,12 +1,56 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
 from middleware.auth_middleware import get_current_user, require_role
+from models.settings import SystemSettings
+from models.job import JobUpdate
 from utils.db import get_db
-from utils.helpers import exclude_id
+from utils.helpers import serialize_datetime, exclude_id
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 db = get_db()
+
+# ============= SYSTEM SETTINGS =============
+
+@router.get("/settings")
+async def get_settings(current_user: dict = Depends(get_current_user)):
+    """Get system settings."""
+    await require_role(current_user, ['admin'])
+    
+    settings = await db.settings.find_one({}, exclude_id())
+    if not settings:
+        # Create default settings
+        default_settings = SystemSettings()
+        settings_dict = default_settings.model_dump()
+        settings_dict = serialize_datetime(settings_dict)
+        await db.settings.insert_one(settings_dict)
+        return default_settings.model_dump()
+    
+    return settings
+
+@router.put("/settings")
+async def update_settings(settings: SystemSettings, current_user: dict = Depends(get_current_user)):
+    """Update system settings."""
+    await require_role(current_user, ['admin'])
+    
+    settings.updated_at = datetime.now(timezone.utc)
+    settings.updated_by = current_user['user_id']
+    
+    settings_dict = settings.model_dump()
+    settings_dict = serialize_datetime(settings_dict)
+    
+    existing = await db.settings.find_one({}, exclude_id())
+    if existing:
+        await db.settings.update_one(
+            {"id": existing['id']},
+            {"$set": settings_dict}
+        )
+    else:
+        await db.settings.insert_one(settings_dict)
+    
+    return {"message": "Settings updated successfully"}
+
+# ============= USER MANAGEMENT =============
 
 @router.get("/users")
 async def get_users(
@@ -40,6 +84,162 @@ async def get_users(
         "page": page,
         "total_pages": (total + limit - 1) // limit
     }
+
+@router.get("/users/{user_id}")
+async def get_user_details(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed user information."""
+
+
+# ============= JOB MANAGEMENT =============
+
+@router.get("/all-jobs")
+async def get_all_jobs(
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all jobs in the system."""
+    await require_role(current_user, ['admin'])
+    
+    query = {}
+    if status:
+        query['status'] = status
+    
+    skip = (page - 1) * limit
+    
+    jobs = await db.jobs.find(query, exclude_id()).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.jobs.count_documents(query)
+    
+    return {
+        "jobs": jobs,
+        "total": total,
+        "page": page,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@router.put("/jobs/{job_id}")
+async def admin_update_job(
+    job_id: str,
+    job_data: JobUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Admin can edit any job."""
+    await require_role(current_user, ['admin'])
+    
+    job = await db.jobs.find_one({"id": job_id}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    update_data = job_data.model_dump(exclude_unset=True)
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.jobs.update_one(
+        {"id": job_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": "Job updated successfully"}
+
+@router.delete("/jobs/{job_id}")
+async def admin_delete_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Admin can delete any job."""
+    await require_role(current_user, ['admin'])
+    
+    job = await db.jobs.find_one({"id": job_id}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    await db.jobs.delete_one({"id": job_id})
+    await db.applications.delete_many({"job_id": job_id})
+    
+    return {"message": "Job deleted successfully"}
+
+# ============= APPLICATION MANAGEMENT =============
+
+@router.get("/all-applications")
+async def get_all_applications(
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 50,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all applications in the system."""
+    await require_role(current_user, ['admin'])
+    
+    query = {}
+    if status:
+        query['status'] = status
+    
+    skip = (page - 1) * limit
+    
+    applications = await db.applications.find(query, exclude_id()).sort("applied_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.applications.count_documents(query)
+    
+    return {
+        "applications": applications,
+        "total": total,
+        "page": page,
+        "total_pages": (total + limit - 1) // limit
+    }
+
+@router.get("/subscriptions")
+async def get_all_subscriptions(current_user: dict = Depends(get_current_user)):
+    """Get all subscriptions."""
+    await require_role(current_user, ['admin'])
+    
+    subscriptions = await db.subscriptions.find({}, exclude_id()).sort("created_at", -1).to_list(1000)
+    
+    return {
+        "subscriptions": subscriptions,
+        "total": len(subscriptions)
+    }
+
+@router.get("/payments")
+async def get_all_payments(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all payments."""
+    await require_role(current_user, ['admin'])
+    
+    query = {}
+    if status:
+        query['status'] = status
+    
+    payments = await db.payments.find(query, exclude_id()).sort("created_at", -1).to_list(1000)
+    
+    return {
+        "payments": payments,
+        "total": len(payments)
+    }
+
+    await require_role(current_user, ['admin'])
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.pop('password_hash', None)
+    return user
+
+@router.put("/users/{user_id}")
+async def update_user(user_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
+    """Admin can edit any user profile."""
+    await require_role(current_user, ['admin'])
+    
+    user = await db.users.find_one({"id": user_id}, exclude_id())
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": update_data}
+    )
+    
+    return {"message": "User updated successfully"}
 
 @router.put("/users/{user_id}/status")
 async def update_user_status(

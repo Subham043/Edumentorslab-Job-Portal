@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { Users, Briefcase, DollarSign, FileText } from 'lucide-react';
 import api from '../../utils/api';
 import { toast } from 'sonner';
@@ -83,9 +85,14 @@ export default function AdminDashboard() {
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              User management, job moderation, and detailed analytics features coming soon.
+          <CardContent className="flex flex-wrap gap-4">
+            <Link to="/admin/settings">
+              <Button className="rounded-full" data-testid="settings-button">
+                System Settings
+              </Button>
+            </Link>
+            <p className="text-muted-foreground w-full">
+              Manage pricing, features, and platform configuration
             </p>
           </CardContent>
         </Card>

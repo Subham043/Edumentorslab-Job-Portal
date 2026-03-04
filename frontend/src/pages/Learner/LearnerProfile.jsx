@@ -143,6 +143,180 @@ export default function LearnerProfile() {
         {/* Profile Completion */}
         <Card className="mb-8 rounded-2xl" data-testid="profile-completion-card">
           <CardHeader>
+
+
+        {/* Professional Links */}
+        <Card className="mb-8 rounded-2xl" data-testid="professional-links-card">
+          <CardHeader>
+            <CardTitle>Professional Links</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="portfolio_url">Portfolio/Website</Label>
+              <Input
+                id="portfolio_url"
+                value={formData.portfolio_url || ''}
+                onChange={(e) => setFormData({ ...formData, portfolio_url: e.target.value })}
+                placeholder="https://yourportfolio.com"
+                data-testid="portfolio-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="linkedin_url">LinkedIn Profile</Label>
+              <Input
+                id="linkedin_url"
+                value={formData.linkedin_url || ''}
+                onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                placeholder="https://linkedin.com/in/yourprofile"
+                data-testid="linkedin-input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="github_url">GitHub Profile</Label>
+              <Input
+                id="github_url"
+                value={formData.github_url || ''}
+                onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                placeholder="https://github.com/yourusername"
+                data-testid="github-input"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Additional Qualifications */}
+        <Card className="mb-8 rounded-2xl" data-testid="qualifications-card">
+          <CardHeader>
+            <CardTitle>Languages & Certifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Languages Known</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a language"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const value = e.target.value.trim();
+                      if (value && !formData.languages?.includes(value)) {
+                        setFormData({ ...formData, languages: [...(formData.languages || []), value] });
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                  data-testid="language-input"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(formData.languages || []).map((lang, index) => (
+                  <Badge key={index} variant="secondary" className="gap-1">
+                    {lang}
+                    <button onClick={() => setFormData({ ...formData, languages: formData.languages.filter((_, i) => i !== index) })}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Certifications</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a certification"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const value = e.target.value.trim();
+                      if (value && !formData.certifications?.includes(value)) {
+                        setFormData({ ...formData, certifications: [...(formData.certifications || []), value] });
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                  data-testid="certification-input"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(formData.certifications || []).map((cert, index) => (
+                  <Badge key={index} variant="secondary" className="gap-1">
+                    {cert}
+                    <button onClick={() => setFormData({ ...formData, certifications: formData.certifications.filter((_, i) => i !== index) })}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Job Preferences */}
+        <Card className="mb-8 rounded-2xl" data-testid="job-preferences-card">
+          <CardHeader>
+            <CardTitle>Job Preferences</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="expected_salary_min">Expected Salary Min (\u20b9)</Label>
+                <Input
+                  id="expected_salary_min"
+                  type="number"
+                  value={formData.expected_salary_min || ''}
+                  onChange={(e) => setFormData({ ...formData, expected_salary_min: parseInt(e.target.value) || 0 })}
+                  placeholder="500000"
+                  data-testid="salary-min-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expected_salary_max">Expected Salary Max (\u20b9)</Label>
+                <Input
+                  id="expected_salary_max"
+                  type="number"
+                  value={formData.expected_salary_max || ''}
+                  onChange={(e) => setFormData({ ...formData, expected_salary_max: parseInt(e.target.value) || 0 })}
+                  placeholder="800000"
+                  data-testid="salary-max-input"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="notice_period">Notice Period</Label>
+                <Input
+                  id="notice_period"
+                  value={formData.notice_period || ''}
+                  onChange={(e) => setFormData({ ...formData, notice_period: e.target.value })}
+                  placeholder="e.g., 30 days, Immediate"
+                  data-testid="notice-period-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="work_authorization">Work Authorization</Label>
+                <Input
+                  id="work_authorization"
+                  value={formData.work_authorization || ''}
+                  onChange={(e) => setFormData({ ...formData, work_authorization: e.target.value })}
+                  placeholder="e.g., Indian Citizen, Work Permit"
+                  data-testid="work-auth-input"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="willing_to_relocate"
+                checked={formData.willing_to_relocate || false}
+                onChange={(e) => setFormData({ ...formData, willing_to_relocate: e.target.checked })}
+                className="w-4 h-4"
+                data-testid="relocate-checkbox"
+              />
+              <Label htmlFor="willing_to_relocate">Willing to relocate</Label>
+            </div>
+          </CardContent>
+        </Card>
+
             <CardTitle>Profile Completion</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

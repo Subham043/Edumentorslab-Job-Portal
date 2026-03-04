@@ -19,6 +19,7 @@ import MyJobs from './pages/Employer/MyJobs';
 import Applicants from './pages/Employer/Applicants';
 import Subscription from './pages/Employer/Subscription';
 import AdminDashboard from './pages/Admin/AdminDashboard';
+import AdminSettings from './pages/Admin/AdminSettings';
 
 import './App.css';
 
@@ -126,6 +127,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminSettings />
               </ProtectedRoute>
             }
           />

@@ -48,6 +48,19 @@ async def create_job(job_data: JobCreate, current_user: dict = Depends(get_curre
     job_dict = job.model_dump()
     job_dict = serialize_datetime(job_dict)
     
+
+
+@router.get("/jobs/{job_id}")
+async def get_my_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Get employer's specific job details."""
+    await require_role(current_user, ['employer'])
+    
+    job = await db.jobs.find_one({"id": job_id, "employer_id": current_user['user_id']}, exclude_id())
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return job
+
     await db.jobs.insert_one(job_dict)
     
     return {
